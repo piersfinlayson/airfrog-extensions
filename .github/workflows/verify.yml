@@ -1,0 +1,53 @@
+# Checks manifest.json's signature with the manifest key and each extension
+# image's size, SHA-256 and header. The manifest key is read from
+# airfrog-site's copy, commissioning/manifest-key.js, at its address in
+# airfrog-site's urls.toml. The repository variable AIRFROG_SITE_REPOSITORY is
+# airfrog-site's GitHub repository, for example OWNER/airfrog-site.
+#
+# On a push it also enables check-ui.yml, which GitHub disables after 60 days
+# without repository activity.
+name: Verify the signed list
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check AIRFROG_SITE_REPOSITORY is set
+        env:
+          SITE_REPOSITORY: ${{ vars.AIRFROG_SITE_REPOSITORY }}
+        run: |
+          if [ -z "${SITE_REPOSITORY}" ]; then
+            echo "The repository variable AIRFROG_SITE_REPOSITORY isn't set. Set it to airfrog-site's repository."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ vars.AIRFROG_SITE_REPOSITORY }}
+          path: airfrog-site
+
+      - name: Fetch the manifest key
+        run: |
+          url="$(python3 airfrog-site/ci/urls.py url MANIFEST_KEY_JS)"
+          curl -sS -f -L --max-time 30 -o "${RUNNER_TEMP}/manifest-key.js" "${url}"
+
+      - name: Verify
+        run: python3 .github/scripts/verify.py "${RUNNER_TEMP}/manifest-key.js"
+
+      - name: Enable check-ui.yml
+        if: ${{ !cancelled() && github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable check-ui.yml --repo "${GITHUB_REPOSITORY}"

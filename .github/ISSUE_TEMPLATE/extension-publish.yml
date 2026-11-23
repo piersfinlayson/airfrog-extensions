@@ -1,0 +1,46 @@
+name: Extension publication request
+description: Request that your extension be published at extensions.airfrog.org
+title: "[extension] "
+body:
+  - type: markdown
+    attributes:
+      value: Read [CONTRIBUTIONS](../blob/HEAD/CONTRIBUTIONS.md) before raising this.
+  - type: input
+    id: repository
+    attributes:
+      label: Repository URL
+      description: Public repository containing your extension's source
+    validations:
+      required: true
+  - type: input
+    id: tag
+    attributes:
+      label: Tag
+      description: The tag the extension package was built from
+    validations:
+      required: true
+  - type: textarea
+    id: package
+    attributes:
+      label: Extension package
+      description: Attach NAME-VERSION.afx from airfrog-ext package. GitHub doesn't accept .afx attachments, so zip it and attach the zip.
+    validations:
+      required: true
+  - type: checkboxes
+    id: contents
+    attributes:
+      label: The extension at that tag
+      options:
+        - label: Includes the extension-meta.json the package was built from
+          required: true
+        - label: Has any UI at the https:// address in extension-meta.json, on a website you control
+          required: true
+        - label: Was side-loaded from this package and tested on the latest released Airfrog firmware
+          required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional information
+      description: Anything else that would help with your submission
+    validations:
+      required: false

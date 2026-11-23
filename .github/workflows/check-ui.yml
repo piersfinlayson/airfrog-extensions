@@ -1,0 +1,54 @@
+# Fetches the UI address of every version of each extension in manifest.json
+# that isn't depublished, and opens an issue for each address that fails,
+# unless an open issue for that address exists.
+#
+# GitHub disables a scheduled workflow after 60 days without repository
+# activity. Each run enables this workflow again through the API, and
+# verify.yml enables it on every push.
+name: Check UI addresses
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch each UI address
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Each line is a UI address, a tab and the versions that use it.
+          jq -r '[.extensions | to_entries[] | select(.value.depublished | not)
+                  | .key as $name | .value.versions[] | select(.metadata.ui)
+                  | {ui: .metadata.ui, version: "\($name) \(.metadata.version)"}]
+                 | group_by(.ui)[] | [.[0].ui, (map(.version) | join(", "))] | @tsv' manifest.json |
+          while IFS=$'\t' read -r ui versions; do
+            if error="$(curl -sS -f -L --max-time 30 -o /dev/null "${ui}" 2>&1)"; then
+              echo "OK ${ui}"
+              continue
+            fi
+            echo "Failed ${ui}: ${error}"
+            title="UI address fails: ${ui}"
+            open="$(gh issue list --state open --search "\"${title}\" in:title" --json title --jq '.[].title')"
+            if grep -Fxq "${title}" <<< "${open}"; then
+              echo "An open issue exists for ${ui}"
+              continue
+            fi
+            gh issue create --title "${title}" --body "$(printf 'Used by %s.\n\n```\n%s\n```\n' "${versions}" "${error}")"
+          done
+
+      - name: Enable this workflow
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable check-ui.yml --repo "${GITHUB_REPOSITORY}"
