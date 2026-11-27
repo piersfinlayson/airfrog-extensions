@@ -97,7 +97,9 @@ This writes `NAME-VERSION.afx`.
 
 ## Testing
 
-Use Install from file in the Extensions tab, or the CLI, to install the package:
+A package is unsigned, so Airfrog installs it only over serial or over the
+access point started by holding the recovery button for 3 seconds. Install
+it with the CLI over either:
 
 ```sh
 airfrog extension install --file NAME-VERSION.afx

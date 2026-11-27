@@ -1,7 +1,6 @@
 # Airfrog Extension Repository
 
 The published Airfrog extensions, served at https://extensions.airfrog.org/.
-`airfrog-v2/docs/ac4-design.md` sections 7 and 13 specify the repository.
 
 ## Layout
 
@@ -10,7 +9,7 @@ manifest.json                          the signed list
 manifest.json.minisig                  its minisign signature
 NAME/VERSION/extension-meta.json       the extension metadata, as submitted
 NAME/VERSION/extension.wasm            the WASM module, as submitted
-NAME/VERSION/wamr-WAMR/model-N.bin   the extension image for model N and WAMR version WAMR
+NAME/VERSION/wamr-WAMR/model-N.bin   the extension image for model N and WAMR version WAMR, signed
 ```
 
 An extension with a WASM module has an extension image for each Airfrog
@@ -19,10 +18,10 @@ model and WAMR version. An extension without one doesn't have
 
 ## Signed list
 
-`manifest.json` lists every extension and version with the SHA-256 of each
-extension image. It is signed with the manifest key, which signs the other
-Airfrog manifests. The Airfrog manifest's `extensions_manifest` is its
-address.
+`manifest.json` lists every extension and version with the size and SHA-256
+of each extension image's signed file. It is signed with the release key,
+which signs the other Airfrog manifests. The Airfrog manifest's
+`extensions_manifest` is its address.
 
 ```json
 {
@@ -71,6 +70,14 @@ The extension metadata follows the name. The module follows the metadata
 at the next multiple of 4 bytes, after zeros. Without a module, module_offset
 is the end of the image.
 
+Each image in the repository is a signed file. The image is followed by:
+
+- zeros to a multiple of 4 bytes
+- `AFSG`
+- the image's 74-byte minisign legacy Ed25519 signature by the release key
+
+Airfrog checks the signature when the image is installed.
+
 ## Publishing
 
 An author raises an issue with the Extension publication request template
@@ -97,8 +104,10 @@ extension package `NAME-VERSION.afx`, zipped. In this directory:
    or the one `AIRFROG_WAMRC` selects. airfrog-v2's `ci/build-wamrc.sh`
    builds it.
 
-2. Sign `manifest.json` with Airfrog's signing server, using the Python
-   airfrog-site's `ci/install-python.sh` installs:
+2. Sign the new extension images and `manifest.json` with Airfrog's signing
+   server, using the Python airfrog-site's `ci/install-python.sh` installs.
+   Each image is replaced with its signed file and its size and SHA-256 in
+   `manifest.json` are updated:
 
    ```sh
    python3 ../airfrog-site/ci/release-extensions.py --repository . --signer https://HOST:8444
@@ -108,9 +117,8 @@ extension package `NAME-VERSION.afx`, zipped. In this directory:
 
 `airfrog-ext publish` fails, and changes nothing, when:
 
-- the extension metadata breaks a rule in `ac4-design.md` section 13
-- the WASM module breaks a rule in `ac4-design.md` section 11, or wamrc
-  fails to compile it
+- the extension metadata is invalid
+- the WASM module is invalid, or wamrc fails to compile it
 - the version is already published
 - the extension is depublished
 - another extension in the list has its UI on the same host name with a
@@ -135,10 +143,16 @@ to GitHub Pages on each push to `main`.
 ## Signature check
 
 `.github/workflows/verify.yml` runs on every push and pull request. It fails
-when `manifest.json.minisig` isn't a signature of `manifest.json` by the
-manifest key, or when an extension image or `extension-meta.json` doesn't
-match the list. It reads the manifest key from airfrog-site's copy,
-`commissioning/manifest-key.js`, at its address `MANIFEST_KEY_JS` in
+when:
+
+- `manifest.json.minisig` isn't a signature of `manifest.json` by a release
+  key
+- an extension image isn't a signed file with a valid signature by a release
+  key
+- an extension image or `extension-meta.json` doesn't match the list
+
+It reads the release keys from airfrog-site's
+`commissioning/release-keys.js`, at its address `RELEASE_KEYS_JS` in
 airfrog-site's `urls.toml`. Set the repository variable
 `AIRFROG_SITE_REPOSITORY` to airfrog-site's GitHub repository, for example
 `OWNER/airfrog-site`. On a push it also enables `check-ui.yml`.

@@ -1,6 +1,6 @@
-# Checks manifest.json's signature with the manifest key and each extension
-# image's size, SHA-256 and header. The manifest key is read from
-# airfrog-site's copy, commissioning/manifest-key.js, at its address in
+# Checks manifest.json's signature with the release keys, and each extension
+# image file's size, SHA-256, header and signature. The release keys are read
+# from airfrog-site's commissioning/release-keys.js, at its address in
 # airfrog-site's urls.toml. The repository variable AIRFROG_SITE_REPOSITORY is
 # airfrog-site's GitHub repository, for example OWNER/airfrog-site.
 #
@@ -38,13 +38,13 @@ jobs:
           repository: ${{ vars.AIRFROG_SITE_REPOSITORY }}
           path: airfrog-site
 
-      - name: Fetch the manifest key
+      - name: Fetch the release keys
         run: |
-          url="$(python3 airfrog-site/ci/urls.py url MANIFEST_KEY_JS)"
-          curl -sS -f -L --max-time 30 -o "${RUNNER_TEMP}/manifest-key.js" "${url}"
+          url="$(python3 airfrog-site/ci/urls.py url RELEASE_KEYS_JS)"
+          curl -sS -f -L --max-time 30 -o "${RUNNER_TEMP}/release-keys.js" "${url}"
 
       - name: Verify
-        run: python3 .github/scripts/verify.py "${RUNNER_TEMP}/manifest-key.js"
+        run: python3 .github/scripts/verify.py "${RUNNER_TEMP}/release-keys.js"
 
       - name: Enable check-ui.yml
         if: ${{ !cancelled() && github.event_name == 'push' }}
